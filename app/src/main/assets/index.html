@@ -157,115 +157,283 @@
       
       <!-- ==================== SCREEN 1: DASHBOARD / GENERATOR ==================== -->
       <section id="screen-generator" class="screen-view p-3 sm:p-5 lg:p-6 max-w-7xl mx-auto">
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- Mobile View Jump Bar (< 768px) -->
+        <div class="md:hidden flex items-center justify-between mb-3.5 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold no-print">
+          <button type="button" onclick="scrollToLeftDashboard()" class="flex-1 py-1.5 text-center rounded-lg bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-300 shadow-xs flex items-center justify-center space-x-1">
+            <span>📋</span>
+            <span>Dashboard Board (Left)</span>
+          </button>
+          <button type="button" onclick="scrollToWorksheetPreview()" class="flex-1 py-1.5 text-center rounded-lg text-slate-600 dark:text-slate-300 hover:text-slate-900 flex items-center justify-center space-x-1">
+            <span>📄</span>
+            <span>Worksheet Preview</span>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-5 lg:gap-6 items-start">
           
-          <!-- LEFT COLUMN: Dashboard & Generator Controls (Always on the Left) -->
-          <div class="lg:col-span-5 xl:col-span-5 lg:sticky lg:top-2 space-y-4 no-print">
+          <!-- LEFT COLUMN: Dashboard Board (Always on the Left of the Screen) -->
+          <div id="left-dashboard-board" class="md:col-span-5 lg:col-span-5 md:sticky md:top-2 space-y-4 no-print">
             
-            <div class="flex items-center justify-between">
-              <div>
-                <div class="flex items-center space-x-2 text-xs font-bold text-brand-600 dark:text-brand-400 uppercase tracking-wider mb-0.5">
-                  <span class="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></span>
-                  <span>Dashboard &bull; Generator</span>
+            <!-- Dashboard Board Master Header Card -->
+            <div class="bg-gradient-to-r from-brand-50 via-brand-50/70 to-accent-50/50 dark:from-slate-800 dark:via-brand-950/40 dark:to-slate-800 p-4 rounded-2xl border border-brand-200/80 dark:border-brand-800/60 shadow-sm">
+              <div class="flex items-center justify-between mb-1">
+                <div class="flex items-center space-x-2">
+                  <span class="w-2.5 h-2.5 rounded-full bg-brand-600 dark:bg-brand-400 animate-pulse"></span>
+                  <span class="text-[11px] font-black uppercase tracking-widest text-brand-700 dark:text-brand-300">
+                    Dashboard Board &bull; Left
+                  </span>
                 </div>
-                <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Create Worksheet</h2>
+                <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                  ELA Master
+                </span>
               </div>
-              <span class="text-xs bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-semibold px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
-                100% Free
-              </span>
+              <h2 class="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                Reading, Language &amp; Writing Studio
+              </h2>
+              <p class="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                Generate tailored pedagogical materials with variable grammar integration.
+              </p>
             </div>
 
-            <!-- Generator Form Card -->
-            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 transition-all">
+            <!-- Dashboard Generator Form Card -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-5 transition-all">
               <form id="generator-form" onsubmit="handleGenerateWorksheet(event)" class="space-y-4">
                 
+                <!-- 1. CORE CONTENT FOCUS (Reading / Language / Writing / Integrated) -->
                 <div>
-                  <label for="topic-input" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
-                    Topic or Grammar Skill <span class="text-rose-500">*</span>
-                  </label>
+                  <div class="flex items-center justify-between mb-1.5">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">
+                      Content Pillar <span class="text-rose-500">*</span>
+                    </label>
+                    <span id="active-domain-label" class="text-[10px] font-bold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/40 px-2 py-0.5 rounded-md border border-brand-200/60 dark:border-brand-800/60">
+                      Reading &amp; Comprehension
+                    </span>
+                  </div>
+                  
+                  <div class="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold">
+                    <button 
+                      type="button" 
+                      id="domain-btn-reading" 
+                      onclick="selectContentDomain('reading')" 
+                      class="domain-btn py-2 px-1.5 rounded-lg text-center transition flex flex-col items-center justify-center gap-0.5 text-brand-700 dark:text-brand-300 bg-white dark:bg-slate-800 shadow-xs font-bold"
+                    >
+                      <span class="text-base">📖</span>
+                      <span class="text-[11px]">Reading</span>
+                    </button>
+                    <button 
+                      type="button" 
+                      id="domain-btn-language" 
+                      onclick="selectContentDomain('language')" 
+                      class="domain-btn py-2 px-1.5 rounded-lg text-center transition flex flex-col items-center justify-center gap-0.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                    >
+                      <span class="text-base">🗣️</span>
+                      <span class="text-[11px]">Language</span>
+                    </button>
+                    <button 
+                      type="button" 
+                      id="domain-btn-writing" 
+                      onclick="selectContentDomain('writing')" 
+                      class="domain-btn py-2 px-1.5 rounded-lg text-center transition flex flex-col items-center justify-center gap-0.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                    >
+                      <span class="text-base">✍️</span>
+                      <span class="text-[11px]">Writing</span>
+                    </button>
+                  </div>
+
+                  <div class="mt-2 flex items-center justify-between">
+                    <button 
+                      type="button" 
+                      id="domain-btn-integrated" 
+                      onclick="selectContentDomain('integrated')" 
+                      class="text-[11px] font-semibold text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 flex items-center space-x-1 transition group"
+                    >
+                      <span>🌟</span>
+                      <span class="group-hover:underline">Or generate Integrated ELA (Reading + Language + Writing)</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- 2. TOPIC OR THEME INPUT -->
+                <div>
+                  <div class="flex items-center justify-between mb-1.5">
+                    <label for="topic-input" class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">
+                      Topic / Text Theme <span class="text-rose-500">*</span>
+                    </label>
+                    <span id="topic-field-hint" class="text-[10px] text-slate-400 italic">Passage &amp; context topic</span>
+                  </div>
                   <input 
                     type="text" 
                     id="topic-input" 
                     required
-                    placeholder="e.g., Irregular Past Tense, Prepositions, Rainforests" 
-                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition"
+                    placeholder="e.g., Deep Sea Ocean Trenches & Marine Ecosystems" 
+                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-brand-500 outline-none transition"
                   />
                 </div>
 
-                <!-- Quick Topic Suggestions Chips -->
+                <!-- DYNAMIC PRESETS FOR CHOSEN DOMAIN -->
                 <div>
-                  <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">Quick Presets:</span>
-                  <div class="flex flex-wrap gap-1.5">
-                    <button type="button" onclick="setTopic('Past Simple vs Present Perfect')" class="chip px-2.5 py-1 text-xs font-medium rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-900/40 transition">Past Simple vs Present Perfect</button>
-                    <button type="button" onclick="setTopic('Cause and Effect Reading Passage')" class="chip px-2.5 py-1 text-xs font-medium rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-900/40 transition">Reading Passage</button>
-                    <button type="button" onclick="setTopic('Vocabulary: Synonyms & Antonyms')" class="chip px-2.5 py-1 text-xs font-medium rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-900/40 transition">Synonyms &amp; Antonyms</button>
+                  <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Domain Presets:</span>
+                  <div id="domain-presets-container" class="flex flex-wrap gap-1.5">
+                    <!-- Populated dynamically by app.js -->
                   </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <!-- 3. VARIABLE GRAMMAR INTEGRATION (Making Grammar Variable) -->
+                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 space-y-2.5">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-1.5">
+                      <span class="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-1">
+                        <span>🧩</span> Variable Grammar Focus
+                      </span>
+                      <span id="grammar-status-badge" class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-accent-500/10 text-accent-600 dark:text-accent-400 border border-accent-500/20">
+                        Variable Active
+                      </span>
+                    </div>
+                    <!-- Randomize / Vary Grammar button -->
+                    <button 
+                      type="button" 
+                      onclick="randomizeGrammarFocus()" 
+                      title="Randomly vary the target grammar dimension" 
+                      class="px-2 py-1 text-[11px] font-bold rounded-lg bg-white dark:bg-slate-800 hover:bg-brand-50 dark:hover:bg-brand-900/40 text-brand-600 dark:text-brand-300 border border-slate-200 dark:border-slate-700 transition flex items-center space-x-1 shadow-xs active:scale-95"
+                    >
+                      <span>🎲</span>
+                      <span>Vary Grammar</span>
+                    </button>
+                  </div>
+
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label for="grammar-variable-target" class="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+                        Target Grammar Dimension
+                      </label>
+                      <select 
+                        id="grammar-variable-target" 
+                        onchange="handleGrammarTargetChange()" 
+                        class="w-full px-2.5 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-brand-500 outline-none"
+                      >
+                        <option value="none">None (Pure ELA - No Grammar Bias)</option>
+                        <option value="tenses" selected>Variable: Verb Tenses &amp; Aspect (Past/Present/Perfect)</option>
+                        <option value="conditionals">Variable: Conditionals &amp; Hypotheticals (Zero - 3rd)</option>
+                        <option value="passive_voice">Variable: Active vs. Passive Voice &amp; Inversion</option>
+                        <option value="relative_clauses">Variable: Relative &amp; Complex Subordinate Clauses</option>
+                        <option value="modals">Variable: Modal Verbs (Deduction, Obligation &amp; Nuance)</option>
+                        <option value="subject_verb">Variable: Subject-Verb Concord &amp; Quantifiers</option>
+                        <option value="reported_speech">Variable: Direct vs. Reported / Indirect Speech</option>
+                        <option value="sentence_structure">Variable: Syntactic Sentence Types &amp; Coordination</option>
+                        <option value="punctuation_mechanics">Variable: Punctuation, Semicolons &amp; Transitions</option>
+                        <option value="custom">Variable: Custom Grammar Rule...</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label for="grammar-variable-mode" class="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+                        Variable Intensity
+                      </label>
+                      <select 
+                        id="grammar-variable-mode" 
+                        onchange="updateGrammarHint()" 
+                        class="w-full px-2.5 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-brand-500 outline-none"
+                      >
+                        <option value="balanced" selected>Balanced (Passage + Task + Writing Rubric)</option>
+                        <option value="embedded">Embedded in Reading Passage &amp; Rubric</option>
+                        <option value="intensive">Intensive Syntax Analysis &amp; Conversion</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <!-- Custom grammar target input (hidden unless custom selected) -->
+                  <div id="custom-grammar-container" class="hidden pt-1">
+                    <input 
+                      type="text" 
+                      id="custom-grammar-input" 
+                      placeholder="Enter custom grammar focus (e.g. Subjunctive Mood, Gerunds vs Infinitives)" 
+                      class="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs outline-none focus:ring-2 focus:ring-brand-500"
+                    />
+                  </div>
+
+                  <!-- Live explanation of how the variable grammar is applied -->
+                  <div class="flex items-start space-x-2 pt-0.5 text-[11px] text-slate-600 dark:text-slate-400">
+                    <span class="text-brand-500 font-bold shrink-0">ℹ️</span>
+                    <p id="grammar-focus-hint" class="italic leading-snug">
+                      Grammar target will dynamically shape reading analysis, vocabulary discovery, and writing prompt criteria.
+                    </p>
+                  </div>
+                </div>
+
+                <!-- 4. GRADE LEVEL & ADAPTIVE FORMAT -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-0.5">
                   <div>
-                    <label for="grade-level" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1">Grade Level</label>
-                    <select id="grade-level" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                    <label for="grade-level" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1">
+                      Grade Level
+                    </label>
+                    <select id="grade-level" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-xs sm:text-sm focus:ring-2 focus:ring-brand-500 outline-none">
                       <option value="Elementary (Grades 1-5)">Elementary (Grades 1-5)</option>
                       <option value="Middle School (Grades 6-8)" selected>Middle School (Grades 6-8)</option>
                       <option value="High School (Grades 9-12)">High School (Grades 9-12)</option>
                       <option value="ESL / Adult Beginner">ESL Beginner (A1-A2)</option>
                       <option value="ESL / Intermediate">ESL Intermediate (B1-B2)</option>
-                      <option value="Advanced / IELTS Prep">Advanced / C1</option>
+                      <option value="Advanced / IELTS Prep">Advanced / C1-C2 Prep</option>
                     </select>
                   </div>
 
                   <div>
-                    <label for="worksheet-type" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1">Format</label>
-                    <select id="worksheet-type" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-brand-500 outline-none">
-                      <option value="Fill-in-the-Blanks" selected>Fill-in-the-Blanks</option>
-                      <option value="Multiple Choice (MCQ)">Multiple Choice (MCQ)</option>
-                      <option value="Sentence Correction">Sentence Correction</option>
-                      <option value="Reading Passage &amp; Questions">Reading &amp; Comprehension</option>
-                      <option value="Vocabulary Matching">Vocabulary Matching</option>
-                      <option value="Creative Writing Prompt">Writing Prompt &amp; Rubric</option>
+                    <label for="worksheet-type" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1">
+                      Exercise Format
+                    </label>
+                    <select id="worksheet-type" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-xs sm:text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                      <!-- Populated dynamically according to domain -->
+                      <option value="Passage &amp; Text-Dependent Questions" selected>Passage &amp; Text Questions</option>
+                      <option value="Multiple Choice Comprehension">Multiple Choice (MCQ)</option>
+                      <option value="Inference &amp; Text Evidence">Inference &amp; Text Evidence</option>
+                      <option value="Main Idea &amp; Summary Breakdown">Main Idea &amp; Summary</option>
                     </select>
                   </div>
                 </div>
 
+                <!-- 5. QUESTION COUNT & ANSWER KEY -->
                 <div class="grid grid-cols-2 gap-3">
                   <div>
-                    <label for="question-count" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1">Questions</label>
-                    <select id="question-count" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-brand-500 outline-none">
-                      <option value="5">5 Questions</option>
-                      <option value="10" selected>10 Questions</option>
-                      <option value="15">15 Questions</option>
+                    <label for="question-count" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1">
+                      Items / Tasks
+                    </label>
+                    <select id="question-count" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-xs sm:text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                      <option value="5">5 Items</option>
+                      <option value="8" selected>8 Items</option>
+                      <option value="10">10 Items</option>
+                      <option value="12">12 Items</option>
                     </select>
                   </div>
                   <div class="flex items-end pb-2">
                     <label class="flex items-center cursor-pointer select-none space-x-2">
                       <input type="checkbox" id="include-answers" checked class="w-4 h-4 text-brand-600 rounded focus:ring-brand-500 border-slate-300 dark:border-slate-600 dark:bg-slate-900" />
-                      <span class="text-xs font-medium text-slate-700 dark:text-slate-300">Answer Key</span>
+                      <span class="text-xs font-semibold text-slate-700 dark:text-slate-300">Answer Key &amp; Rubric</span>
                     </label>
                   </div>
                 </div>
 
+                <!-- GENERATE ACTION BUTTON -->
                 <button 
                   type="submit" 
                   id="btn-generate" 
-                  class="w-full mt-2 flex items-center justify-center space-x-2 bg-gradient-to-r from-brand-600 to-accent-600 hover:from-brand-700 hover:to-accent-700 text-white font-bold py-3 px-5 rounded-xl shadow-lg shadow-brand-500/25 transition-all transform active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
+                  class="w-full mt-2 flex items-center justify-center space-x-2 bg-gradient-to-r from-brand-600 to-accent-600 hover:from-brand-700 hover:to-accent-700 text-white font-bold py-3.5 px-5 rounded-xl shadow-lg shadow-brand-500/25 transition-all transform active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
-                  <span>Generate Worksheet</span>
+                  <span id="btn-generate-text">Generate ELA Worksheet</span>
                 </button>
               </form>
             </div>
 
-            <!-- Dashboard Quick Status Card -->
+            <!-- Left Dashboard Board Quick Info Card -->
             <div class="bg-slate-100 dark:bg-slate-800/60 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
               <div class="flex items-center space-x-2">
                 <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
                 <span class="font-medium">Direct A4 Print &amp; PDF</span>
               </div>
               <button onclick="switchTab('tutor')" class="text-brand-600 dark:text-brand-400 hover:underline font-semibold flex items-center space-x-1">
-                <span>Ask AI Tutor</span>
+                <span>AI Tutor Chat</span>
                 <span>&rarr;</span>
               </button>
             </div>
@@ -273,7 +441,7 @@
           </div>
 
           <!-- RIGHT COLUMN: Worksheet Output / Live Paper Canvas -->
-          <div class="lg:col-span-7 xl:col-span-7 space-y-4">
+          <div id="worksheet-canvas-column" class="md:col-span-7 lg:col-span-7 space-y-4">
             
             <!-- Skeleton / Loading Indicator (Frosted Glass) -->
             <div id="generator-loading" class="hidden glass-panel p-8 rounded-3xl animate-pulse space-y-4 no-print">
@@ -301,9 +469,9 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
-              <h3 class="text-lg font-bold text-slate-900 dark:text-white">Live Worksheet Canvas</h3>
+              <h3 class="text-lg font-bold text-slate-900 dark:text-white">Live ELA Worksheet Canvas</h3>
               <p class="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto mt-1.5 mb-6 leading-relaxed">
-                Configure your topic, level, and format on the <strong class="text-brand-600 dark:text-brand-400">dashboard on the left</strong>, then click <span class="font-semibold text-slate-700 dark:text-slate-300">"Generate Worksheet"</span> to display your formatted exercise sheet here.
+                Configure your reading, language, or writing goals on the <strong class="text-brand-600 dark:text-brand-400">Dashboard Board on the left</strong> with variable grammar integration, then click <span class="font-semibold text-slate-700 dark:text-slate-300">"Generate ELA Worksheet"</span> to display your formatted printable sheet here.
               </p>
               <div class="inline-flex items-center space-x-2 text-xs font-semibold px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
                 <span>⚡ Print-ready A4 formatting &bull; Answer key included</span>

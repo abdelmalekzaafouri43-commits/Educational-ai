@@ -23,6 +23,9 @@ const STORAGE_KEYS = {
 // Application State
 const state = {
   activeTab: 'generator',
+  currentDomain: 'reading',
+  currentGrammarTarget: 'tenses',
+  currentGrammarMode: 'balanced',
   currentWorksheet: null,
   isGenerating: false,
   savedWorksheets: [],
@@ -80,6 +83,7 @@ const PREMIUM_THEMES = {
 document.addEventListener('DOMContentLoaded', () => {
   loadStoredData();
   applyTheme();
+  initDomainAndGrammarControls();
   renderSavedWorksheets();
   renderChatMessages();
   updateBadgeCounts();
@@ -180,8 +184,303 @@ function switchTab(tabId) {
 }
 
 // ==========================================
-// 4. WORKSHEET GENERATOR LOGIC & AI API INTEGRATION
+// 4. ELA DOMAINS & VARIABLE GRAMMAR CONFIGURATION
 // ==========================================
+const ELA_DOMAINS = {
+  reading: {
+    id: 'reading',
+    name: 'Reading & Comprehension',
+    badge: 'Reading & Analysis',
+    placeholder: 'e.g., Deep Sea Ocean Trenches & Marine Ecosystems',
+    formats: [
+      { value: 'Passage & Text-Dependent Questions', label: 'Passage & Analytical Short-Answers' },
+      { value: 'Passage & Multiple Choice (MCQ)', label: 'Passage & Multiple Choice (MCQ)' },
+      { value: 'Close Reading & Text Evidence', label: 'Close Reading & Text Evidence' },
+      { value: 'Main Idea, Fact vs Opinion & Inferences', label: 'Main Idea, Fact vs Opinion & Inferences' }
+    ],
+    presets: [
+      'Deep Sea Trenches & Marine Ecosystems',
+      'The Ethics of Artificial Intelligence',
+      'The Ancient Silk Road & Cultural Exchange',
+      'Renewable Energy & Climate Solutions'
+    ]
+  },
+  language: {
+    id: 'language',
+    name: 'Language & Vocabulary',
+    badge: 'Language & Vocabulary',
+    placeholder: 'e.g., Context Clues, Figurative Metaphors, Tier 2 Diction',
+    formats: [
+      { value: 'Context Clues & Diction Analysis', label: 'Context Clues & Diction Analysis' },
+      { value: 'Figurative Language & Imagery', label: 'Figurative Language (Metaphor, Simile, Personification)' },
+      { value: 'Idioms, Collocations & Phrasal Verbs', label: 'Idioms, Collocations & Phrasal Verbs' },
+      { value: 'Greek & Latin Roots Morphology', label: 'Greek & Latin Roots Morphology Breakdown' },
+      { value: 'Connotation vs Denotation Matching', label: 'Connotation, Denotation & Semantic Nuance' }
+    ],
+    presets: [
+      'Figurative Metaphors & Poetic Imagery',
+      'Tier 2 Academic Vocabulary in Context',
+      'Idiomatic Expressions & Phrasal Verbs',
+      'Greek & Latin Prefixes & Word Roots'
+    ]
+  },
+  writing: {
+    id: 'writing',
+    name: 'Writing & Composition',
+    badge: 'Writing & Composition',
+    placeholder: 'e.g., Argumentative: Space Exploration vs Ocean Discovery',
+    formats: [
+      { value: 'Argumentative Essay with Evidence Rubric', label: 'Argumentative / Persuasive Essay with Rubric' },
+      { value: 'Narrative Creative Story Scene & Dialogue', label: 'Narrative Creative Story Scene & Dialogue' },
+      { value: 'Sentence Combining & Syntactic Expansion', label: 'Sentence Combining & Syntactic Expansion' },
+      { value: 'Expository Explanatory Process Essay', label: 'Expository Explanatory Essay with Guidance' }
+    ],
+    presets: [
+      'Argumentative: Space Exploration vs Ocean Discovery',
+      'Narrative: An Unexpected Discovery in the Fog',
+      'Persuasive: The Value of Free Public Libraries',
+      'Expository: How Architecture Reflects Culture'
+    ]
+  },
+  integrated: {
+    id: 'integrated',
+    name: 'Integrated ELA (Reading + Language + Writing)',
+    badge: 'Tripartite ELA Master',
+    placeholder: 'e.g., The Psychology of Curiosity & Discovery',
+    formats: [
+      { value: 'Tripartite Master: Reading + Language + Guided Writing with Rubric', label: 'Complete Tripartite Master (Passage + Language + Writing & Rubric)' }
+    ],
+    presets: [
+      'The Psychology of Curiosity & Discovery',
+      'Ecosystem Resilience & Urban Rewilding',
+      'The Evolution of Storytelling from Folktales to Digital'
+    ]
+  }
+};
+
+const VARIABLE_GRAMMAR_TARGETS = {
+  none: {
+    name: 'None (Pure ELA)',
+    hint: 'No grammar constraint — focus exclusively on reading, vocabulary, and writing craft.'
+  },
+  tenses: {
+    name: 'Verb Tenses & Aspect (Past, Present, Perfect)',
+    hint: 'Passage features varied tenses; vocabulary and writing require deliberate tense shifts (Past Simple vs Present Perfect).'
+  },
+  conditionals: {
+    name: 'Conditionals & Hypotheticals (Zero - 3rd)',
+    hint: 'Reading and writing emphasize cause-effect conditions and hypothetical reasoning (If clauses, unless, would have).'
+  },
+  passive_voice: {
+    name: 'Active vs. Passive Voice & Inversion',
+    hint: 'Scientific/literary passive voice identification in reading; students must use and analyze agentless passive voice.'
+  },
+  relative_clauses: {
+    name: 'Relative & Complex Subordinate Clauses',
+    hint: 'Essential vs non-essential relative clauses (who, which, that, whose) and subordinating conjunctions in reading and writing.'
+  },
+  modals: {
+    name: 'Modal Verbs (Deduction, Obligation & Nuance)',
+    hint: 'Analysis of epistemic modality (must have been, could, might) and persuasive obligation modals in text and response.'
+  },
+  subject_verb: {
+    name: 'Subject-Verb Concord & Quantifiers',
+    hint: 'Challenging indefinite pronouns, compound subjects, and collective nouns embedded in exercises.'
+  },
+  reported_speech: {
+    name: 'Direct vs. Reported / Indirect Speech',
+    hint: 'Quotation attribution, backshifting, and reporting verbs (asserted, maintained, questioned) practiced in dialogue and analysis.'
+  },
+  sentence_structure: {
+    name: 'Sentence Types (Compound, Complex, Coordination)',
+    hint: 'Coordination (FANBOYS), subordination, and periodic sentences woven into comprehension and writing expansion drills.'
+  },
+  punctuation_mechanics: {
+    name: 'Punctuation, Semicolons & Transitions',
+    hint: 'Mastery of semicolons, colons, em-dashes, and transitional adverbs (however, furthermore, nevertheless).'
+  },
+  custom: {
+    name: 'Custom Target Grammar Rule',
+    hint: 'User-specified target rule dynamically injected into reading text, exercises, and the writing rubric.'
+  }
+};
+
+/**
+ * Initialize Left Dashboard ELA Domain and Variable Grammar Controls
+ */
+function initDomainAndGrammarControls() {
+  selectContentDomain(state.currentDomain || 'reading');
+  handleGrammarTargetChange();
+}
+
+/**
+ * Switch Content Domain on Left Dashboard (Reading / Language / Writing / Integrated)
+ */
+function selectContentDomain(domainId) {
+  if (!ELA_DOMAINS[domainId]) domainId = 'reading';
+  state.currentDomain = domainId;
+  const config = ELA_DOMAINS[domainId];
+
+  // Update button styles
+  ['reading', 'language', 'writing'].forEach(id => {
+    const btn = document.getElementById(`domain-btn-${id}`);
+    if (btn) {
+      if (id === domainId) {
+        btn.className = "domain-btn py-2 px-1.5 rounded-lg text-center transition flex flex-col items-center justify-center gap-0.5 text-brand-700 dark:text-brand-300 bg-white dark:bg-slate-800 shadow-xs font-bold";
+      } else {
+        btn.className = "domain-btn py-2 px-1.5 rounded-lg text-center transition flex flex-col items-center justify-center gap-0.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white";
+      }
+    }
+  });
+
+  // Integrated link styling
+  const intBtn = document.getElementById('domain-btn-integrated');
+  if (intBtn) {
+    if (domainId === 'integrated') {
+      intBtn.className = "text-[11px] font-bold text-accent-600 dark:text-accent-400 flex items-center space-x-1 underline";
+    } else {
+      intBtn.className = "text-[11px] font-semibold text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 flex items-center space-x-1 transition group";
+    }
+  }
+
+  // Update labels & hints
+  const label = document.getElementById('active-domain-label');
+  if (label) label.textContent = config.name;
+
+  const topicInput = document.getElementById('topic-input');
+  if (topicInput) {
+    topicInput.placeholder = config.placeholder;
+  }
+
+  // Populate dynamic formats
+  const formatSelect = document.getElementById('worksheet-type');
+  if (formatSelect) {
+    formatSelect.innerHTML = config.formats.map((f, idx) => 
+      `<option value="${f.value}" ${idx === 0 ? 'selected' : ''}>${f.label}</option>`
+    ).join('');
+  }
+
+  // Populate dynamic presets
+  const presetsContainer = document.getElementById('domain-presets-container');
+  if (presetsContainer) {
+    presetsContainer.innerHTML = config.presets.map(preset => 
+      `<button type="button" onclick="setTopic('${preset.replace(/'/g, "\\'")}')" class="chip px-2.5 py-1 text-xs font-medium rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-900/40 transition">${preset}</button>`
+    ).join('');
+  }
+
+  updateGrammarHint();
+}
+
+/**
+ * Handle Grammar Target Selector Change
+ */
+function handleGrammarTargetChange() {
+  const select = document.getElementById('grammar-variable-target');
+  if (!select) return;
+
+  const val = select.value;
+  state.currentGrammarTarget = val;
+
+  const customContainer = document.getElementById('custom-grammar-container');
+  if (customContainer) {
+    if (val === 'custom') {
+      customContainer.classList.remove('hidden');
+      const customInput = document.getElementById('custom-grammar-input');
+      if (customInput) customInput.focus();
+    } else {
+      customContainer.classList.add('hidden');
+    }
+  }
+
+  const badge = document.getElementById('grammar-status-badge');
+  if (badge) {
+    if (val === 'none') {
+      badge.textContent = 'Grammar Neutral';
+      badge.className = 'text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400';
+    } else {
+      badge.textContent = 'Variable Active';
+      badge.className = 'text-[9px] font-bold px-2 py-0.5 rounded-full bg-accent-500/10 text-accent-600 dark:text-accent-400 border border-accent-500/20';
+    }
+  }
+
+  updateGrammarHint();
+}
+
+/**
+ * Randomly cycle/vary the target grammar dimension
+ */
+function randomizeGrammarFocus() {
+  const grammarKeys = [
+    'tenses',
+    'conditionals',
+    'passive_voice',
+    'relative_clauses',
+    'modals',
+    'subject_verb',
+    'reported_speech',
+    'sentence_structure',
+    'punctuation_mechanics'
+  ];
+
+  // Pick a random key different from current
+  const available = grammarKeys.filter(k => k !== state.currentGrammarTarget);
+  const picked = available[Math.floor(Math.random() * available.length)];
+
+  const select = document.getElementById('grammar-variable-target');
+  if (select) {
+    select.value = picked;
+    handleGrammarTargetChange();
+  }
+
+  const targetName = VARIABLE_GRAMMAR_TARGETS[picked]?.name || picked;
+  showToast(`🎲 Variable Grammar set to: ${targetName}`, '✨');
+}
+
+/**
+ * Update Live Explanatory Hint for Variable Grammar
+ */
+function updateGrammarHint() {
+  const hintEl = document.getElementById('grammar-focus-hint');
+  if (!hintEl) return;
+
+  const targetKey = state.currentGrammarTarget || 'tenses';
+  const mode = document.getElementById('grammar-variable-mode')?.value || 'balanced';
+  const domainKey = state.currentDomain || 'reading';
+
+  if (targetKey === 'none') {
+    hintEl.textContent = `Pure ${ELA_DOMAINS[domainKey]?.name || 'ELA'} mode: Content is generated without any grammar-rule bias.`;
+    return;
+  }
+
+  let grammarName = VARIABLE_GRAMMAR_TARGETS[targetKey]?.name || targetKey;
+  if (targetKey === 'custom') {
+    const customVal = document.getElementById('custom-grammar-input')?.value.trim();
+    grammarName = customVal ? `"${customVal}"` : 'Custom Grammar Target';
+  }
+
+  let modeDesc = 'integrated across passage analysis, contextual vocabulary, and writing constraints.';
+  if (mode === 'embedded') {
+    modeDesc = 'subtly woven into text reading nuances and the writing evaluation rubric.';
+  } else if (mode === 'intensive') {
+    modeDesc = 'highlighted for rigorous structural analysis, syntax conversion, and targeted rubric grading.';
+  }
+
+  hintEl.textContent = `Variable Target: ${grammarName} will be ${modeDesc}`;
+}
+
+/**
+ * Quick jump for mobile (< 768px)
+ */
+function scrollToLeftDashboard() {
+  const el = document.getElementById('left-dashboard-board');
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function scrollToWorksheetPreview() {
+  const el = document.getElementById('worksheet-canvas-column');
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function setTopic(topicText) {
   const input = document.getElementById('topic-input');
   if (input) {
@@ -190,6 +489,9 @@ function setTopic(topicText) {
   }
 }
 
+/**
+ * Main Form Submission Handler on Left Dashboard Board
+ */
 async function handleGenerateWorksheet(event) {
   event.preventDefault();
   if (state.isGenerating) return;
@@ -197,34 +499,52 @@ async function handleGenerateWorksheet(event) {
   const topic = document.getElementById('topic-input').value.trim();
   const gradeLevel = document.getElementById('grade-level').value;
   const format = document.getElementById('worksheet-type').value;
-  const count = parseInt(document.getElementById('question-count').value, 10) || 10;
+  const count = parseInt(document.getElementById('question-count').value, 10) || 8;
   const includeAnswers = document.getElementById('include-answers').checked;
 
+  const domain = state.currentDomain || 'reading';
+  const grammarTarget = document.getElementById('grammar-variable-target').value;
+  const grammarMode = document.getElementById('grammar-variable-mode').value;
+  const customGrammar = document.getElementById('custom-grammar-input')?.value.trim() || '';
+
+  let grammarLabel = '';
+  if (grammarTarget !== 'none') {
+    if (grammarTarget === 'custom' && customGrammar) {
+      grammarLabel = customGrammar;
+    } else {
+      grammarLabel = VARIABLE_GRAMMAR_TARGETS[grammarTarget]?.name || grammarTarget;
+    }
+  }
+
   if (!topic) {
-    showToast('Please enter a topic or grammar skill', '⚠️');
+    showToast('Please enter a topic or text theme on the left dashboard', '⚠️');
     return;
   }
 
   setGeneratingState(true);
 
   try {
-    // -------------------------------------------------------------
-    // EXTERNAL API INTEGRATION HOOK:
-    // If you have an API key or want to call Gemini or OpenAI:
-    // const result = await callExternalAI(topic, gradeLevel, format, count, includeAnswers);
-    // -------------------------------------------------------------
     const worksheetData = await generateWorksheetWithEngine({
+      domain,
       topic,
       gradeLevel,
       format,
       count,
       includeAnswers,
+      grammarTarget,
+      grammarMode,
+      grammarLabel,
       userApiKey: state.settings.apiKey
     });
 
     state.currentWorksheet = worksheetData;
     renderGeneratedWorksheet(worksheetData);
-    showToast('Worksheet generated successfully!', '✨');
+    showToast('ELA Worksheet generated successfully!', '✨');
+
+    // On mobile screens, automatically smooth scroll to the canvas
+    if (window.innerWidth < 768) {
+      setTimeout(scrollToWorksheetPreview, 300);
+    }
 
   } catch (error) {
     console.error('Worksheet generation failed:', error);
@@ -255,61 +575,72 @@ function setGeneratingState(isGenerating) {
 
 /**
  * AI Pedagogical Generator Engine
- * Generates structured, authentic English exercise sheets matching the grade & format.
- * Also contains placeholder functions for external API calls.
+ * Generates structured, authentic English exercise sheets matching the domain, grade & variable grammar.
  */
 async function generateWorksheetWithEngine(params) {
-  const { topic, gradeLevel, format, count, includeAnswers, userApiKey } = params;
-
   // Simulate network generation delay for smooth UX
-  await new Promise(resolve => setTimeout(resolve, 1400));
+  await new Promise(resolve => setTimeout(resolve, 1200));
 
-  // If user provided a Gemini key or server key is configured, you can call callGeminiAPI here
-  if (userApiKey) {
+  // If user provided a Gemini key, call callGeminiAPI
+  if (params.userApiKey) {
     try {
-      const liveResult = await callGeminiAPI(params, userApiKey);
+      const liveResult = await callGeminiAPI(params, params.userApiKey);
       if (liveResult) return liveResult;
     } catch (e) {
       console.warn('Gemini API call error, falling back to built-in generator:', e);
     }
   }
 
-  // Built-in educational curriculum generator
-  return buildCurriculumWorksheet(topic, gradeLevel, format, count, includeAnswers);
+  // Built-in curriculum generator
+  return buildCurriculumWorksheet(params);
 }
 
 /**
- * Placeholder for Google Gemini API Call
- * INSERT YOUR GEMINI API KEY IN SETTINGS OR BELOW:
+ * External Gemini API Integration Hook with ELA & Variable Grammar Support
  */
-async function callGeminiAPI({ topic, gradeLevel, format, count, includeAnswers }, apiKey) {
-  /*
-   * TO USE GOOGLE GEMINI:
-   * 1. Get an API key from https://aistudio.google.com/
-   * 2. The endpoint below connects directly to Gemini 2.5 Flash / 1.5 Flash.
-   */
+async function callGeminiAPI(params, apiKey) {
+  const { domain, topic, gradeLevel, format, count, includeAnswers, grammarTarget, grammarLabel, grammarMode } = params;
   const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-  const prompt = `Generate an educational English worksheet in JSON format for:
-Topic: "${topic}"
+  const prompt = `Generate an authentic, high-quality ELA (English Language Arts) worksheet in JSON format for:
+Content Pillar: "${domain}" (Reading / Language / Writing)
+Topic / Central Theme: "${topic}"
 Grade Level: "${gradeLevel}"
 Format: "${format}"
-Question Count: ${count}
+Task / Item Count: ${count}
+Variable Grammar Focus: "${grammarLabel || 'None'}" (${grammarMode || 'balanced'})
 Include Answer Key: ${includeAnswers}
+
+Requirements:
+- If domain is Reading: Include a 3-paragraph reading passage with numbered paragraphs, followed by deep comprehension questions. If grammar focus is active, include at least one question analyzing syntax in the passage.
+- If domain is Language: Provide rich vocabulary in context, figurative language, idioms, or morphology exercises with clear hints.
+- If domain is Writing: Provide a stimulating writing prompt, clear criteria, a required variable grammar constraint, and a 4-part scoring rubric.
+- If domain is Integrated: Provide a passage, 4 language questions, and a writing prompt with rubric.
 
 Return ONLY valid JSON with this schema:
 {
   "title": "Title of Worksheet",
+  "domain": "${domain}",
   "instructions": "Clear directions for the student",
+  "passage": "Optional reading passage text if relevant",
   "questions": [
     {
       "id": 1,
-      "prompt": "Question text or sentence with blank",
+      "prompt": "Question text or writing prompt",
       "options": ["A", "B", "C", "D"], // optional
-      "answer": "Correct answer or sample explanation"
+      "hint": "Helpful pedagogical clue or grammar requirement",
+      "answer": "Correct answer, sample response, or rubric check"
     }
   ],
-  "teacherNotes": "Brief tips on teaching this topic"
+  "writingTask": {
+    "prompt": "Full writing prompt",
+    "grammarRequirement": "Specific instruction for incorporating the variable grammar target",
+    "rubric": [
+      { "criterion": "Ideas & Content", "description": "Clear thesis and supporting evidence" },
+      { "criterion": "Grammar Mastery", "description": "Accurate use of ${grammarLabel || 'standard grammar'}" }
+    ]
+  },
+  "teacherNotes": "Brief pedagogical notes for the instructor"
 }`;
 
   const response = await fetch(ENDPOINT, {
@@ -331,114 +662,369 @@ Return ONLY valid JSON with this schema:
 
   return {
     id: 'ws-' + Date.now(),
-    title: parsed.title || `${topic} Practice`,
+    title: parsed.title || `${topic} - ${domain.toUpperCase()}`,
+    domain,
     gradeLevel,
     format,
+    grammarTarget,
+    grammarLabel,
+    grammarMode,
     instructions: parsed.instructions || 'Complete the following exercises carefully.',
+    passage: parsed.passage || null,
     questions: parsed.questions || [],
+    writingTask: parsed.writingTask || null,
     teacherNotes: parsed.teacherNotes || '',
+    includeAnswers,
     dateGenerated: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   };
 }
 
 /**
- * Placeholder for OpenAI API Call (Optional alternative)
- * INSERT YOUR OPENAI API KEY HERE IF PREFERRED:
+ * Built-in Curriculum Generator to guarantee 100% offline, immediate, high-craft results
+ * Specially designed for Reading/Language/Writing with Variable Grammar
  */
-async function callOpenAIAPI(prompt, openAiKey) {
-  /*
-   * const ENDPOINT = 'https://api.openai.com/v1/chat/completions';
-   * // Fetch logic with Bearer token...
-   */
-  console.log('OpenAI placeholder invoked for prompt:', prompt);
-}
+function buildCurriculumWorksheet(params) {
+  const { domain = 'reading', topic, gradeLevel, format, count = 8, includeAnswers = true, grammarTarget = 'none', grammarLabel = '', grammarMode = 'balanced' } = params;
 
-/**
- * Built-in Curriculum Generator to guarantee 100% offline, immediate, high quality results
- */
-function buildCurriculumWorksheet(topic, gradeLevel, format, count, includeAnswers) {
-  const isMcq = format.includes('Multiple Choice');
-  const isReading = format.includes('Reading');
-  const isVocab = format.includes('Vocabulary');
-  const isWriting = format.includes('Writing');
+  const isReading = domain === 'reading' || domain === 'integrated';
+  const isLanguage = domain === 'language' || domain === 'integrated';
+  const isWriting = domain === 'writing' || domain === 'integrated';
 
+  let passage = null;
   const questions = [];
-  const subjectTerms = [
-    { term: 'elated', def: 'Extremely happy and proud', ex: 'She was elated when she received her exam scores.' },
-    { term: 'meticulous', def: 'Showing great attention to detail', ex: 'The author gave meticulous edits to the novel.' },
-    { term: 'resilient', def: 'Able to withstand or recover quickly from difficulty', ex: 'The resilient team rebuilt their project quickly.' },
-    { term: 'concur', def: 'To agree with someone or something', ex: 'All committee members concurred with the decision.' },
-    { term: 'ambiguous', def: 'Open to more than one interpretation; unclear', ex: 'The ending of the mystery story remained ambiguous.' },
-    { term: 'fluctuate', def: 'To rise and fall irregularly in number or amount', ex: 'Temperatures fluctuate drastically in the desert.' },
-    { term: 'perseverance', def: 'Continued effort to do something despite difficulties', ex: 'Her perseverance led to great academic success.' }
-  ];
+  let writingTask = null;
 
-  let passage = '';
+  // 1. GENERATE PASSAGE (For Reading & Integrated)
   if (isReading) {
-    passage = `The Amazon Rainforest spans over 2.1 million square miles across South America, serving as the lungs of our planet by producing approximately 20% of the world's oxygen. Beneath its dense emerald canopy thrives an astonishing biodiversity: thousands of tree species, vivid macaws, playful river dolphins, and elusive jaguars. However, deforestation driven by commercial agriculture and logging threatens this delicate ecosystem. Conservationists, indigenous guardians, and global scientists are collaborating on sustainable forestry initiatives and satellite tracking to preserve this vital biome for future generations.`;
+    if (topic.toLowerCase().includes('deep sea') || topic.toLowerCase().includes('ocean') || topic.toLowerCase().includes('marine')) {
+      passage = `[1] Descending into the ocean's abyssal depths reveals an extreme realm of near-freezing water and crushing hydrostatic pressure, where sunlight has never penetrated. Despite these seemingly uninhabitable conditions, marine biologists have documented thriving biological communities that cluster around hydrothermal vents. In these volcanic fissures, chemosynthetic bacteria synthesize sulfur-laden minerals into sustenance, forming the bedrock of a food web that sustains ghost crabs, bioluminescent lanternfish, and giant tube worms.
+
+[2] Adaptation in the hadal zone demands profound physiological marvels. Most deep-sea species possess gelatinous bodies deficient in air cavities, which prevents catastrophic implosion under pressure. If a surface fish were transplanted into the Mariana Trench, its cellular membranes would rupture almost instantly. Furthermore, organisms such as the anglerfish deploy bioluminescent photophores not merely for illumination, but as strategic lures to entice unsuspecting prey in the perpetual blackness.
+
+[3] Human activity now encroaches even upon these remote sanctuaries. Industrial bottom-trawling and prospective deep-seabed mineral mining threaten to disrupt fragile seafloor sediments that have settled over millions of years. As oceanographers deploy autonomous submersibles to map uncharted trenches, international conservation treaties must be enacted swiftly to safeguard these mysterious ecological frontiers before irreversible devastation occurs.`;
+    } else {
+      // General authentic theme passage
+      passage = `[1] The exploration of ${topic} represents one of the most intellectually compelling frontiers in modern knowledge. As researchers and observers delve deeper into its intricate dynamics, foundational principles that were once considered unassailable have undergone profound re-examination. What began as an isolated curiosity has blossomed into a vital interdisciplinary domain, offering fresh perspectives on how societies and environments continually evolve.
+
+[2] A critical examination reveals that subtle factors exert disproportionate influence over outcomes. When conditions are meticulously cataloged, researchers consistently discover underlying patterns that illuminate complex interdependencies. For instance, if foundational elements are altered even slightly, the cascading ramifications can redefine the entire trajectory. Observers must therefore remain vigilant, distinguishing between superficial correlations and substantive causal mechanisms.
+
+[3] Looking toward the future, stewardship and thoughtful application will determine whether these discoveries benefit humanity as a whole. While technological tools facilitate unprecedented diagnostic precision, the human element—characterized by critical analysis, ethical discernment, and collaborative inquiry—remains indispensable. Ultimately, mastering the nuances of ${topic} empowers learners to participate meaningfully in dialogues that shape our collective tomorrow.`;
+    }
   }
 
-  for (let i = 1; i <= count; i++) {
-    if (isMcq) {
-      questions.push({
-        id: i,
-        prompt: `Choose the grammatically correct sentence demonstrating "${topic}":`,
-        options: [
-          `A) The students had ${topic.toLowerCase().includes('verb') ? 'completed' : 'practiced'} their assignment before the bell rang.`,
-          `B) The students was ${topic.toLowerCase().includes('verb') ? 'completing' : 'practicing'} their assignment before the bell rang.`,
-          `C) The students has ${topic.toLowerCase().includes('verb') ? 'completed' : 'practiced'} their assignment before the bell rang.`,
-          `D) The students were complete their assignment before the bell rang.`
-        ],
-        answer: 'A'
-      });
-    } else if (isVocab) {
-      const vocab = subjectTerms[(i - 1) % subjectTerms.length];
-      questions.push({
-        id: i,
-        prompt: `Match or define the target term: "${vocab.term.toUpperCase()}"`,
-        hint: `Context sentence: ${vocab.ex}`,
-        answer: `${vocab.term}: ${vocab.def}`
-      });
-    } else if (isWriting) {
-      questions.push({
-        id: i,
-        prompt: `Writing Prompt ${i}: Compose a 4-6 sentence paragraph about "${topic}". Incorporate at least two complex sentences and vivid descriptive adjectives.`,
-        answer: `Rubric Check: Evidence of topic understanding, correct punctuation, and use of complex subordinating conjunctions (although, because, whereas).`
-      });
-    } else {
-      // Standard Fill-in-the-blanks / Grammar Drill
-      const verbForms = ['discovered', 'analyzed', 'demonstrated', 'communicated', 'established', 'organized', 'observed', 'synthesized'];
-      const verb = verbForms[(i - 1) % verbForms.length];
-      questions.push({
-        id: i,
-        prompt: `Drill ${i}: In yesterday's lesson, our teacher _________ (to ${verb}) the fundamental principles of ${topic}.`,
-        answer: verb
+  // 2. GENERATE QUESTIONS ACCORDING TO DOMAIN
+  if (domain === 'reading') {
+    const readingQuestionBlueprints = [
+      {
+        prompt: `Based on Paragraph 1, what primary energy source sustains the biological community around hydrothermal vents? Cite specific text evidence.`,
+        hint: `Look for how bacteria synthesize energy without sunlight.`,
+        answer: `Sample Answer: Chemosynthetic bacteria synthesize sulfur-laden minerals into sustenance through chemosynthesis, forming the base of the food web in the absence of sunlight.`
+      },
+      {
+        prompt: `In Paragraph 2, what does the author imply by describing deep-sea adaptations as "profound physiological marvels"?`,
+        hint: `Consider the author's diction and tone regarding extreme pressure.`,
+        answer: `Sample Answer: The author implies that survival under extreme pressure requires extraordinary biological adaptations, such as gelatinous bodies and the absence of air cavities.`
+      },
+      {
+        prompt: `Analyze the author's primary argument in Paragraph 3. How does the author transition from biological description to environmental advocacy?`,
+        hint: `Identify the shift in focus from natural wonder to human threats.`,
+        answer: `Sample Answer: The author transitions by contrasting ancient, undisturbed seafloor ecosystems with imminent industrial threats (mining and trawling), arguing for urgent international conservation treaties.`
+      },
+      {
+        prompt: `Vocabulary in Context: Based on Paragraph 1, determine the meaning of the word "perpetual" or "encroaches" as used in the passage.`,
+        hint: `Use surrounding context clues to determine nuance.`,
+        answer: `Sample Answer: "Encroaches" means gradually advancing into or intruding upon a protected space; "perpetual" denotes continuous, uninterrupted duration.`
+      }
+    ];
+
+    // If grammar variable is active, add targeted syntactic analysis question
+    if (grammarTarget !== 'none') {
+      readingQuestionBlueprints.push({
+        prompt: `Syntactic Analysis (${grammarLabel || 'Grammar Target'}): Identify a sentence in Paragraph 2 or 3 demonstrating ${grammarLabel || 'the target grammar'}. Explain how this grammatical construction clarifies the author's purpose.`,
+        hint: `Notice how the sentence structures emphasize cause, condition, or passivity.`,
+        answer: `Sample Answer: In Paragraph 2: "If a surface fish were transplanted... its cellular membranes would rupture." This conditional sentence underscores the harsh reality of extreme oceanic pressure.`
       });
     }
+
+    // Fill up to count
+    const extraPrompts = [
+      `Distinguish between the central idea of the passage and a supporting technical detail.`,
+      `How does the author's organizational structure (description followed by problem/solution) enhance comprehension?`,
+      `Evaluate whether the conclusion reached in the final paragraph is supported by sound factual evidence or rhetorical persuasion.`,
+      `Write a concise 3-sentence summary encapsulating the passage's primary claims.`,
+      `What questions remain unanswered by the text that a scientific investigator might pursue next?`,
+      `Identify one instance of figurative language or sensory imagery in the passage and explain its effect on the reader.`
+    ];
+
+    let qId = 1;
+    readingQuestionBlueprints.forEach(bp => {
+      if (qId <= count) {
+        questions.push({ id: qId++, ...bp });
+      }
+    });
+
+    while (qId <= count) {
+      const promptText = extraPrompts[(qId - 1) % extraPrompts.length];
+      questions.push({
+        id: qId++,
+        prompt: promptText,
+        hint: `Reference specific paragraphs and line context.`,
+        answer: `Sample Answer: Comprehensive analysis demonstrating mastery of text evidence and critical reasoning.`
+      });
+    }
+
+  } else if (domain === 'language') {
+    const vocabData = [
+      { word: 'ABYSSAL', def: 'Relating to the ocean depths where sunlight never penetrates', root: 'Greek "abyssos" (bottomless)', ex: 'The submarine descended into abyssal trenches.' },
+      { word: 'METICULOUS', def: 'Showing extreme care and attention to fine details', root: 'Latin "metus" (care/fearful caution)', ex: 'She made meticulous observations of the bacterial culture.' },
+      { word: 'PERPETUAL', def: 'Continuing forever or indefinitely without interruption', root: 'Latin "perpetuus" (continuous)', ex: 'Organisms thrive in perpetual darkness.' },
+      { word: 'RESILIENT', def: 'Able to recover swiftly from adversity or physical stress', root: 'Latin "resilire" (to leap back)', ex: 'The deep-sea ecosystem proved surprisingly resilient.' },
+      { word: 'ENCROACH', def: 'To advance gradually beyond usual or acceptable limits', root: 'Old French "encrochier" (to seize)', ex: 'Industrial developments encroach upon wild habitats.' },
+      { word: 'SYNTHESIZE', def: 'To combine constituent parts into a unified whole', root: 'Greek "syntithenai" (to put together)', ex: 'Bacteria synthesize minerals to generate organic nutrients.' }
+    ];
+
+    for (let i = 1; i <= count; i++) {
+      const item = vocabData[(i - 1) % vocabData.length];
+      if (format.includes('Figurative')) {
+        questions.push({
+          id: i,
+          prompt: `Identify the figurative device in the sentence below and explain the comparison being drawn:\n"The ocean trenches stood as silent cathedrals carved by the slow hand of geological time."`,
+          hint: `Look for metaphor, personification, or hyperbole.`,
+          answer: `Device: Metaphor. The ocean trenches are directly compared to "silent cathedrals" to convey grandeur, sacred reverence, and ancient solemnity.`
+        });
+      } else if (format.includes('Roots') || format.includes('Morphology')) {
+        questions.push({
+          id: i,
+          prompt: `Morphological Analysis: Examine the word "${item.word}". Identify its root (${item.root}) and explain how knowing this root helps decode unfamiliar words in scientific reading.`,
+          hint: `Root: ${item.root}`,
+          answer: `Root explanation: ${item.def}. Related English derivatives share the common underlying semantic concept.`
+        });
+      } else {
+        // Context Clues & Diction Analysis
+        questions.push({
+          id: i,
+          prompt: `Context Clues: In the context of ${topic}, define the term "${item.word}" and construct an original academic sentence illustrating its precise meaning.`,
+          hint: `Contextual Definition: ${item.def}`,
+          answer: `Definition: ${item.def}. Sample Sentence: "${item.ex}"`
+        });
+      }
+    }
+
+    // If variable grammar is active, append a syntactic transformation task
+    if (grammarTarget !== 'none' && questions.length > 0) {
+      questions[questions.length - 1] = {
+        id: questions.length,
+        prompt: `Variable Grammar Synthesis (${grammarLabel}): Rewrite the sentence below using ${grammarLabel}.\nOriginal: "Scientists discovered hydrothermal vents in 1977, and they revolutionized oceanography."`,
+        hint: `Apply ${grammarLabel} while maintaining semantic accuracy.`,
+        answer: `Sample Transformation: "Hydrothermal vents were discovered in 1977 by scientists, revolutionizing the field of oceanography."`
+      };
+    }
+
+  } else if (domain === 'writing') {
+    // Dedicated Writing Worksheet with Guided Prompts, Constraints & Variable Grammar Requirement
+    writingTask = {
+      prompt: `Prompt: Compose a well-structured composition exploring "${topic}". State a clear thesis or compelling premise, support your ideas with vivid supporting details, and demonstrate deliberate syntactic variety.`,
+      targetLength: '3 to 5 detailed paragraphs (250–400 words)',
+      grammarRequirement: grammarTarget !== 'none'
+        ? `Mandatory Variable Grammar Requirement: You must integrate at least TWO sentences demonstrating ${grammarLabel} in your composition. Underline each target sentence in your final response.`
+        : `Syntactic Goal: Employ varied sentence lengths and clear transitional adverbs between paragraphs.`,
+      rubric: [
+        { criterion: 'Content & Thesis', description: 'Clear central idea, compelling insight, and robust supporting elaboration.' },
+        { criterion: 'Organization & Cohesion', description: 'Logical flow, coherent paragraph transitions, and effective opening/closing.' },
+        { criterion: 'Diction & Voice', description: 'Sophisticated academic vocabulary, precise verbs, and tone tailored to audience.' },
+        { criterion: grammarTarget !== 'none' ? `Grammar (${grammarLabel})` : 'Mechanics & Syntax', description: grammarTarget !== 'none' ? `Accurate, deliberate application of ${grammarLabel} with underlined sentences.` : 'Error-free punctuation, sentence boundary clarity, and syntactic variety.' }
+      ]
+    };
+
+    // Pre-writing and drafting questions
+    questions.push({
+      id: 1,
+      prompt: `Pre-Writing Brainstorm: Formulate your central thesis statement or guiding narrative hook for your composition on "${topic}".`,
+      hint: `Ensure your statement is specific, arguable, and engaging.`,
+      answer: `Teacher Check: Clear, focused thesis that guides the entire composition without ambiguity.`
+    });
+
+    questions.push({
+      id: 2,
+      prompt: `Syntactic Planning (${grammarLabel || 'Sentence Craft'}): Draft one practice sentence demonstrating ${grammarLabel || 'a complex sentence'} that you will integrate into your body paragraph.`,
+      hint: `Check that your practice sentence conforms to ${grammarLabel || 'standard conventions'}.`,
+      answer: `Teacher Check: Verify accurate syntax for ${grammarLabel || 'the planned structure'}.`
+    });
+
+    questions.push({
+      id: 3,
+      prompt: `Essay / Narrative Drafting Workspace: Write your complete composition below adhering to all prompt criteria and grammar requirements.`,
+      hint: `Target Length: 250-400 words. Remember to underline your target grammar sentences.`,
+      answer: `Score according to the 4-Criterion Holistic Rubric printed below.`
+    });
+
+  } else {
+    // INTEGRATED ELA: Reading + Language + Writing Master
+    const readingQuestions = [
+      {
+        id: 1,
+        prompt: `Reading Analysis: What central conflict or natural phenomenon is depicted in the text? Cite evidence from Paragraph 1.`,
+        hint: `Reference specific textual phrases.`,
+        answer: `Sample Answer: The text contrasts the seemingly uninhabitable conditions of the deep ocean with the thriving, chemosynthetic communities that inhabit it.`
+      },
+      {
+        id: 2,
+        prompt: `Inference & Text Evidence: How do the adaptations described in Paragraph 2 demonstrate evolutionary resilience?`,
+        hint: `Note the specific biological trade-offs.`,
+        answer: `Sample Answer: Gelatinous bodies and bioluminescence allow organisms to withstand extreme hydrostatic pressure and navigate total darkness.`
+      }
+    ];
+
+    const languageQuestions = [
+      {
+        id: 3,
+        prompt: `Language & Diction: Locate an academic or scientific term in the passage. Define it and explain how it elevates the academic tone.`,
+        hint: `Consider words like "chemosynthetic", "bioluminescence", or "encroaches".`,
+        answer: `Sample Answer: "Chemosynthetic" elevates tone by providing precise biological terminology for non-photosynthetic metabolic processes.`
+      },
+      {
+        id: 4,
+        prompt: `Variable Grammar Application (${grammarLabel || 'Sentence Structure'}): Identify a sentence in Paragraph 3 that demonstrates ${grammarLabel || 'complex structure'}. Explain its grammatical structure.`,
+        hint: `Analyze clauses, voice, or modal verbs.`,
+        answer: `Sample Answer: In Paragraph 3, passive and conditional constructions emphasize the collective urgency of conservation.`
+      }
+    ];
+
+    writingTask = {
+      prompt: `Synthesis Writing Task: Using insights from the reading passage and your language analysis, write a 2-paragraph response discussing the importance of investigating "${topic}". Incorporate at least two target sentences using ${grammarLabel || 'varied sentence structures'}.`,
+      targetLength: '2 substantial paragraphs (150–250 words)',
+      grammarRequirement: grammarTarget !== 'none'
+        ? `Variable Grammar Constraint: Underline two sentences that utilize ${grammarLabel}.`
+        : `Ensure clear sentence variety and robust transitional words.`,
+      rubric: [
+        { criterion: 'Text Synthesis', description: 'Accurate integration of passage concepts and vocabulary.' },
+        { criterion: 'Grammar Mastery', description: `Accurate application of ${grammarLabel || 'standard conventions'}.` }
+      ]
+    };
+
+    questions.push(...readingQuestions, ...languageQuestions);
+    questions.push({
+      id: 5,
+      prompt: `Integrated Writing Response: Compose your response combining text evidence, academic diction, and your variable grammar target.`,
+      hint: `Underline your target grammar sentences.`,
+      answer: `Evaluate according to synthesis accuracy and grammar rubric criteria.`
+    });
   }
 
   return {
     id: 'ws-' + Date.now(),
-    title: `${topic} - Master Worksheet`,
+    title: `${topic} - ${domain.toUpperCase()} ELA Master`,
+    domain,
     gradeLevel,
     format,
+    grammarTarget,
+    grammarLabel,
+    grammarMode,
     instructions: isReading 
       ? 'Read the passage carefully, then answer each question in complete, coherent sentences.'
-      : `Complete all ${count} items below adhering to the rules of ${topic}. Check your spelling and grammar.`,
+      : isWriting
+      ? 'Complete the guided pre-writing exercises, then draft your composition adhering strictly to the prompt criteria and variable grammar requirement.'
+      : `Complete all items below adhering to the rules of ${topic}. Check your spelling and grammar.`,
     passage: isReading ? passage : null,
     questions,
+    writingTask,
     includeAnswers,
     dateGenerated: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   };
 }
 
 // ==========================================
-// 5. RENDERING WORKSHEET
+// 5. RENDERING WORKSHEET CANVAS
 // ==========================================
 function renderGeneratedWorksheet(ws) {
   const container = document.getElementById('worksheet-paper-container');
   const resultWrapper = document.getElementById('generated-result-container');
 
+  // Domain Badge Styling
+  const domainNames = {
+    reading: '📖 Reading & Comprehension',
+    language: '🗣️ Language & Vocabulary',
+    writing: '✍️ Writing & Composition',
+    integrated: '🌟 Integrated ELA Master'
+  };
+  const domainLabel = domainNames[ws.domain] || ws.domain || 'ELA Practice';
+
+  // Variable Grammar Pill
+  let grammarPillHtml = '';
+  if (ws.grammarTarget && ws.grammarTarget !== 'none') {
+    grammarPillHtml = `
+      <div class="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-accent-50 dark:bg-accent-950/50 text-accent-700 dark:text-accent-300 border border-accent-200 dark:border-accent-800 text-xs font-semibold mt-2">
+        <span>🧩</span>
+        <span>Variable Grammar Focus:</span>
+        <strong class="text-accent-900 dark:text-white font-bold">${ws.grammarLabel || ws.grammarTarget}</strong>
+        <span class="text-[10px] text-accent-600 dark:text-accent-400">(${ws.grammarMode || 'balanced'})</span>
+      </div>
+    `;
+  }
+
+  // Reading Passage Block
+  let passageHtml = '';
+  if (ws.passage) {
+    passageHtml = `
+      <div class="mb-6 p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/70 border-l-4 border-brand-500 text-sm leading-relaxed text-slate-800 dark:text-slate-200 shadow-xs">
+        <div class="flex items-center justify-between mb-2">
+          <h4 class="font-bold text-xs uppercase tracking-wider text-brand-600 dark:text-brand-400 flex items-center space-x-1.5">
+            <span>📖</span>
+            <span>Reading Passage: Text Evidence</span>
+          </h4>
+          <span class="text-[10px] text-slate-400 font-medium">Paragraphs numbered [1], [2], [3]</span>
+        </div>
+        <div class="space-y-3 font-serif text-[13.5px] sm:text-sm leading-relaxed whitespace-pre-line text-slate-700 dark:text-slate-200">
+          ${ws.passage}
+        </div>
+      </div>
+    `;
+  }
+
+  // Writing Task & Rubric Block (if writing or integrated)
+  let writingBlockHtml = '';
+  if (ws.writingTask) {
+    let rubricRows = '';
+    if (ws.writingTask.rubric && ws.writingTask.rubric.length > 0) {
+      rubricRows = `
+        <div class="mt-4 pt-3 border-t border-slate-200 dark:border-slate-700">
+          <h5 class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">Teacher Scoring Rubric:</h5>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            ${ws.writingTask.rubric.map(r => `
+              <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                <strong class="text-brand-700 dark:text-brand-300 block mb-0.5">${r.criterion}</strong>
+                <span class="text-slate-600 dark:text-slate-400 text-[11px] leading-snug">${r.description}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    writingBlockHtml = `
+      <div class="mb-6 p-4 sm:p-5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 shadow-xs">
+        <div class="flex items-center space-x-2 text-amber-800 dark:text-amber-300 font-bold text-xs uppercase tracking-wider mb-2">
+          <span>✍️</span>
+          <span>Writing Task &amp; Syntactic Guidelines</span>
+        </div>
+        <p class="text-sm text-slate-900 dark:text-slate-100 font-medium mb-3 leading-relaxed">
+          ${ws.writingTask.prompt}
+        </p>
+        
+        <div class="p-3 rounded-xl bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700/60 text-xs space-y-1">
+          <div class="flex items-start space-x-1.5">
+            <span class="font-bold text-brand-600 dark:text-brand-400 shrink-0">🎯 Requirement:</span>
+            <span class="text-slate-800 dark:text-slate-200 font-medium">${ws.writingTask.grammarRequirement}</span>
+          </div>
+          ${ws.writingTask.targetLength ? `<div class="text-slate-500 text-[11px]">Target Length: ${ws.writingTask.targetLength}</div>` : ''}
+        </div>
+
+        ${rubricRows}
+      </div>
+    `;
+  }
+
+  // Questions List
   let questionsHtml = '';
   ws.questions.forEach((q, idx) => {
     let optionsHtml = '';
@@ -456,27 +1042,35 @@ function renderGeneratedWorksheet(ws) {
           <span class="font-bold text-brand-600 dark:text-brand-400 mr-2 text-sm">${idx + 1}.</span>
           <div class="flex-1">
             <p class="text-sm font-medium text-slate-900 dark:text-slate-100">${q.prompt}</p>
-            ${q.hint ? `<p class="text-xs text-slate-400 italic mt-1">${q.hint}</p>` : ''}
+            ${q.hint ? `<p class="text-xs text-slate-500 dark:text-slate-400 italic mt-1.5 flex items-center space-x-1"><span class="not-italic text-amber-500">💡</span> <span>${q.hint}</span></p>` : ''}
             ${optionsHtml}
-            ${!q.options ? `<div class="worksheet-rule mt-2 w-full"></div>` : ''}
+            ${!q.options ? `
+              <div class="space-y-2 mt-3 w-full">
+                <div class="worksheet-rule w-full"></div>
+                <div class="worksheet-rule w-full"></div>
+                <div class="worksheet-rule w-4/5"></div>
+              </div>
+            ` : ''}
           </div>
         </div>
       </div>
     `;
   });
 
+  // Teacher Answer Key Block
   let answerKeyHtml = '';
   if (ws.includeAnswers) {
     answerKeyHtml = `
       <div class="answer-key-section mt-8 pt-6 border-t-2 border-dashed border-slate-300 dark:border-slate-700">
         <div class="flex items-center space-x-2 mb-3">
-          <span class="text-xs font-bold uppercase tracking-widest text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/40 px-2.5 py-1 rounded-md">Teacher Answer Key</span>
-          <span class="text-xs text-slate-400">Fold or detach before distributing</span>
+          <span class="text-xs font-bold uppercase tracking-widest text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/40 px-2.5 py-1 rounded-md">Teacher Answer Key &amp; Rubric Guide</span>
+          <span class="text-xs text-slate-400">Fold or detach before distributing to students</span>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-700 dark:text-slate-300">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs text-slate-700 dark:text-slate-300">
           ${ws.questions.map((q, idx) => `
-            <div class="p-1.5 bg-slate-50 dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-800">
-              <strong class="text-slate-900 dark:text-white">#${idx + 1}:</strong> ${q.answer}
+            <div class="p-2 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800">
+              <strong class="text-slate-900 dark:text-white">Item #${idx + 1}:</strong> 
+              <span class="text-slate-600 dark:text-slate-300">${q.answer}</span>
             </div>
           `).join('')}
         </div>
@@ -484,22 +1078,13 @@ function renderGeneratedWorksheet(ws) {
     `;
   }
 
-  let passageHtml = '';
-  if (ws.passage) {
-    passageHtml = `
-      <div class="mb-6 p-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 border-l-4 border-brand-500 text-sm leading-relaxed text-slate-800 dark:text-slate-200">
-        <h4 class="font-bold text-xs uppercase tracking-wider text-brand-600 dark:text-brand-400 mb-1">Reading Passage</h4>
-        <p>${ws.passage}</p>
-      </div>
-    `;
-  }
-
+  // Construct Full Paper HTML
   container.innerHTML = `
     <!-- Student Header block for printing -->
     <div class="border-b-2 border-slate-900 dark:border-slate-100 pb-4 mb-6">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs font-semibold text-slate-600 dark:text-slate-400">
         <div>
-          <span>Name: </span>
+          <span>Student Name: </span>
           <span class="inline-block border-b border-slate-400 w-36 sm:w-48 ml-1"></span>
         </div>
         <div>
@@ -513,17 +1098,27 @@ function renderGeneratedWorksheet(ws) {
       </div>
 
       <div class="mt-4 text-center">
+        <div class="inline-block mb-1">
+          <span class="text-[11px] font-black uppercase tracking-wider px-3 py-0.5 rounded-full bg-brand-100 dark:bg-brand-900/60 text-brand-700 dark:text-brand-300">
+            ${domainLabel}
+          </span>
+        </div>
         <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">${ws.title}</h2>
-        <p class="text-xs text-brand-600 dark:text-brand-400 font-medium mt-0.5">${ws.gradeLevel} &bull; ${ws.format}</p>
+        <p class="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">${ws.gradeLevel} &bull; ${ws.format}</p>
+        ${grammarPillHtml}
       </div>
     </div>
 
     <!-- Instructions -->
-    <div class="mb-5 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200">
-      <strong>Instructions:</strong> ${ws.instructions}
+    <div class="mb-5 p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 flex items-start space-x-2">
+      <span class="text-base shrink-0 leading-none">📌</span>
+      <div>
+        <strong>Instructions:</strong> ${ws.instructions}
+      </div>
     </div>
 
     ${passageHtml}
+    ${writingBlockHtml}
 
     <!-- Questions list -->
     <div class="space-y-2">
