@@ -28,8 +28,6 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         webView = WebView(this).apply {
-            // Use hardware layer by default; software fallback is only applied if needed
-            setLayerType(android.view.View.LAYER_TYPE_NONE, null)
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
