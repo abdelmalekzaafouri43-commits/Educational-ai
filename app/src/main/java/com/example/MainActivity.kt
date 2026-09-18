@@ -28,7 +28,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         webView = WebView(this).apply {
-            setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
+            // Use hardware layer by default; software fallback is only applied if needed
+            setLayerType(android.view.View.LAYER_TYPE_NONE, null)
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
@@ -42,7 +43,7 @@ class MainActivity : ComponentActivity() {
                 allowContentAccess = true
                 useWideViewPort = true
                 loadWithOverviewMode = true
-                cacheMode = WebSettings.LOAD_DEFAULT
+                cacheMode = WebSettings.LOAD_NO_CACHE
                 mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
             }
 
@@ -91,6 +92,11 @@ class MainActivity : ComponentActivity() {
 }
 
 class WebAppInterface(private val context: Context, private val webView: WebView) {
+    @JavascriptInterface
+    fun getGeminiApiKey(): String {
+        return BuildConfig.GEMINI_API_KEY ?: ""
+    }
+
     @JavascriptInterface
     fun print() {
         webView.post {

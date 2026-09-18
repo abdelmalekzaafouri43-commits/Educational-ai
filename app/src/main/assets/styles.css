@@ -1,19 +1,35 @@
 /* Print styles for clean educational worksheets */
 @media print {
-  body {
+  @page {
+    size: A4 portrait;
+    margin: 15mm 15mm 15mm 15mm;
+  }
+
+  html, body {
     background-color: #ffffff !important;
     color: #000000 !important;
+    height: auto !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
   
   /* Hide interactive app UI elements during print */
-  header, nav, #bottom-nav, #sidebar, .no-print, button, .action-buttons {
+  header, nav, #bottom-nav, #sidebar, .no-print, button, .action-buttons, #generator-empty-canvas, #generator-loading {
     display: none !important;
   }
-  
-  #main-content {
+
+  /* Unconstrain containers so full document pages flow cleanly */
+  main, #main-content, #screen-generator, #worksheet-canvas-column, #generated-result-container {
+    display: block !important;
+    position: static !important;
+    overflow: visible !important;
+    height: auto !important;
+    width: 100% !important;
     padding: 0 !important;
     margin: 0 !important;
-    width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
   }
 
   .print-only-container {
@@ -27,11 +43,22 @@
     border: none !important;
     box-shadow: none !important;
     padding: 0 !important;
-    page-break-after: always;
+    margin: 0 !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    page-break-after: auto;
   }
 
   .answer-key-section {
     page-break-before: always;
+    break-before: page;
+    border-top: 1.5px dashed #64748b !important;
+  }
+
+  /* Ensure text lines and options don't break awkwardly across pages */
+  .worksheet-rule, [id^="item-"] {
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
 }
 
@@ -211,19 +238,19 @@ nav, header, aside, .chip, .screen-view, .glass-panel, .glass-chip, .glass-ai-bu
 }
 
 .glass-panel {
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 10px 35px -5px var(--theme-shadow, rgba(79, 70, 229, 0.15)), 0 0 0 1px rgba(255, 255, 255, 0.4) inset;
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow: 0 16px 40px -10px var(--theme-shadow, rgba(79, 70, 229, 0.2)), 0 1px 0 0 rgba(255, 255, 255, 0.9) inset;
 }
 
 .dark .glass-panel {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 10px 35px -5px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  background: rgba(15, 23, 42, 0.68);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.55), 0 1px 0 0 rgba(255, 255, 255, 0.08) inset;
 }
 
 .glass-chip {

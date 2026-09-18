@@ -574,6 +574,28 @@ function setGeneratingState(isGenerating) {
 }
 
 /**
+ * Helper to get the active Gemini API key from settings or the Android bridge
+ */
+function getActiveApiKey() {
+  const isRealKey = (k) => k && typeof k === 'string' && k.trim() && !k.includes('MY_GEMINI_API_KEY') && k.length > 10;
+
+  if (state.settings && state.settings.apiKey && isRealKey(state.settings.apiKey)) {
+    return state.settings.apiKey.trim();
+  }
+  if (window.Android && typeof window.Android.getGeminiApiKey === 'function') {
+    try {
+      const nativeKey = window.Android.getGeminiApiKey();
+      if (isRealKey(nativeKey)) {
+        return nativeKey.trim();
+      }
+    } catch (e) {
+      console.warn('Could not read Gemini API key from native bridge:', e);
+    }
+  }
+  return '';
+}
+
+/**
  * AI Pedagogical Generator Engine
  * Generates structured, authentic English exercise sheets matching the domain, grade & variable grammar.
  */
@@ -581,10 +603,13 @@ async function generateWorksheetWithEngine(params) {
   // Simulate network generation delay for smooth UX
   await new Promise(resolve => setTimeout(resolve, 1200));
 
-  // If user provided a Gemini key, call callGeminiAPI
-  if (params.userApiKey) {
+  // Determine active API key
+  const activeKey = params.userApiKey || getActiveApiKey();
+
+  // If active Gemini key exists, call callGeminiAPI
+  if (activeKey) {
     try {
-      const liveResult = await callGeminiAPI(params, params.userApiKey);
+      const liveResult = await callGeminiAPI(params, activeKey);
       if (liveResult) return liveResult;
     } catch (e) {
       console.warn('Gemini API call error, falling back to built-in generator:', e);
@@ -600,7 +625,7 @@ async function generateWorksheetWithEngine(params) {
  */
 async function callGeminiAPI(params, apiKey) {
   const { domain, topic, gradeLevel, format, count, includeAnswers, grammarTarget, grammarLabel, grammarMode } = params;
-  const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
   const prompt = `Generate an authentic, high-quality ELA (English Language Arts) worksheet in JSON format for:
 Content Pillar: "${domain}" (Reading / Language / Writing)
@@ -657,7 +682,12 @@ Return ONLY valid JSON with this schema:
   }
 
   const data = await response.json();
-  const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  let textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!textResponse) {
+    throw new Error('No content returned by Gemini');
+  }
+  // Clean markdown fencing if returned
+  textResponse = textResponse.replace(/^```json\s*/i, '').replace(/\s*```$/, '').trim();
   const parsed = JSON.parse(textResponse);
 
   return {
@@ -1256,6 +1286,33 @@ function exportSingleWorksheet(id) {
 // ==========================================
 // 7. PRINT & EXPORT TOOLS
 // ==========================================
+/**
+ * Directly triggers the browser's native print-to-PDF dialog.
+ * Bypasses app container wrappers and uses the @page CSS styling to preserve A4 layout.
+ */
+function triggerDirectBrowserPrintPDF() {
+  if (!state.currentWorksheet) {
+    showToast('No worksheet available to print', '⚠️');
+    return;
+  }
+  
+  showToast('Opening Print to PDF dialog...', '🖨️');
+
+  // Small timeout to allow toast and UI reflow to settle before the blocking browser print dialog opens
+  setTimeout(() => {
+    try {
+      window.print();
+    } catch (e) {
+      console.error('Direct print failed, falling back to Android bridge if available:', e);
+      if (window.Android && typeof window.Android.print === 'function') {
+        window.Android.print();
+      } else {
+        showToast('Print dialog could not be opened', '❌');
+      }
+    }
+  }, 80);
+}
+
 function printCurrentWorksheet() {
   if (!state.currentWorksheet) {
     showToast('No worksheet available to print', '⚠️');
@@ -1346,19 +1403,114 @@ async function handleSendChatMessage(event) {
 }
 
 async function getTutorResponse(question) {
-  // Simulate natural AI thinking delay
-  await new Promise(res => setTimeout(res, 900));
+  const activeKey = getActiveApiKey();
 
+  // If Gemini API Key is available, call Gemini in real time
+  if (activeKey) {
+    try {
+      const liveResponse = await callGeminiChatAPI(question, activeKey);
+      if (liveResponse && liveResponse.trim()) {
+        return liveResponse.trim();
+      }
+    } catch (e) {
+      console.warn('Live Gemini chat call error, using tutor pedagogical engine:', e);
+    }
+  }
+
+  // Graceful pedagogical fallback when offline or without API key
+  await new Promise(res => setTimeout(res, 650));
+  return getSimulatedTutorResponse(question);
+}
+
+/**
+ * Real-time Gemini API conversation engine for English Tutor Alex
+ */
+async function callGeminiChatAPI(userQuestion, apiKey) {
+  const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+
+  // Build context from the user's current worksheet and curriculum settings
+  let contextInfo = '';
+  if (state.currentWorksheet) {
+    contextInfo = `Current Active Worksheet Context:
+- Title: "${state.currentWorksheet.title || 'Untitled'}"
+- Content Domain: "${state.currentWorksheet.domain || state.currentDomain || 'Reading'}"
+- Grade Level: "${state.currentWorksheet.gradeLevel || 'Grade 6-8'}"
+- Grammar Focus: "${state.currentWorksheet.grammarLabel || 'Standard English'}"`;
+    if (state.currentWorksheet.passage) {
+      contextInfo += `\n- Reading Passage Excerpt: "${state.currentWorksheet.passage.substring(0, 300)}..."`;
+    }
+  } else if (state.currentDomain) {
+    contextInfo = `Current Domain Focus: ${state.currentDomain}`;
+  }
+
+  const systemInstruction = `You are Alex, an expert, warm, and highly engaging real-time English and ELA (English Language Arts) tutor.
+Your role:
+1. Provide encouraging, concise, pedagogically sound, and interactive guidance for English learning (grammar, writing, reading comprehension, vocabulary, idioms, syntax, and literary analysis).
+2. If the student asks for writing prompts, feedback on their writing, or grammar explanations, format your response cleanly using markdown with bold terms, bullet points, and clear examples.
+3. Match the tone and level of the student. Keep explanations easy to understand, clear, and actionable.
+4. When relevant to the active worksheet or topic, seamlessly connect your advice to their current study context.
+${contextInfo ? '\n' + contextInfo : ''}`;
+
+  // Gather recent chat history for conversational continuity (up to last 6 messages)
+  const recentHistory = (state.chatMessages || [])
+    .slice(-6)
+    .filter(m => m.id !== 'msg-welcome')
+    .map(m => ({
+      role: m.sender === 'user' ? 'user' : 'model',
+      parts: [{ text: m.text }]
+    }));
+
+  // Append latest question
+  const contents = [...recentHistory, {
+    role: 'user',
+    parts: [{ text: userQuestion }]
+  }];
+
+  const payload = {
+    system_instruction: {
+      parts: [{ text: systemInstruction }]
+    },
+    contents: contents,
+    generationConfig: {
+      temperature: 0.7,
+      topP: 0.95,
+      maxOutputTokens: 1024
+    }
+  };
+
+  const response = await fetch(ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => '');
+    throw new Error(`Gemini Chat API error ${response.status}: ${errorBody || response.statusText}`);
+  }
+
+  const data = await response.json();
+  const textOutput = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!textOutput) {
+    throw new Error('Empty text received from Gemini response');
+  }
+  return textOutput;
+}
+
+/**
+ * Built-in pedagogical simulation for Alex when running offline
+ */
+function getSimulatedTutorResponse(question) {
   const q = question.toLowerCase();
 
   // 1. Creative Writing Prompt
-  if (q.includes('writing prompt') || q.includes('write an essay') || q.includes('story prompt')) {
+  if (q.includes('writing prompt') || q.includes('write an essay') || q.includes('story prompt') || q.includes('prompt')) {
     return `Here is a creative writing prompt for you:\n\n✨ **"The Clock that Ticked Backwards"**\nImagine discovering an antique pocket watch in your school library that doesn't tell the current time, but instead counts backward toward a historic moment.\n\n🎯 **Writing Challenges:**\n1. Use at least three sensory adjectives (e.g., *musty*, *luminescent*, *brass*).\n2. Write from a first-person perspective ("I walked into...").\n3. Introduce an unexpected plot twist in the final paragraph.\n\nGive it a try and paste your paragraph here—I'll review your grammar and word choice!`;
   }
 
   // 2. Vocabulary Explanation / Grammar Rule
   if (q.includes('their') || q.includes('there') || q.includes('they\'re')) {
-    return `Great question! These three homophones confuse many English speakers:\n\n1. **There** (Adverb - Place / Location):\n   • Example: *"Please place your books over there."*\n   • Tip: Contains the word "here" (both relate to places).\n\n2. **Their** (Possessive Pronjective - Belongs to them):\n   • Example: *"The students forgot their notebooks."*\n   • Tip: Contains "heir" (someone who inherits property).\n\n3. **They're** (Contraction of 'They are'):\n   • Example: *"They're going to the school library."*\n   • Tip: Try replacing it with "they are"—if the sentence still makes sense, use the apostrophe!`;
+    return `Great question! These three homophones confuse many English speakers:\n\n1. **There** (Adverb - Place / Location):\n   • Example: *"Please place your books over there."*\n   • Tip: Contains the word "here" (both relate to places).\n\n2. **Their** (Possessive Pronoun - Belongs to them):\n   • Example: *"The students forgot their notebooks."*\n   • Tip: Contains "heir" (someone who inherits property).\n\n3. **They're** (Contraction of 'They are'):\n   • Example: *"They're going to the school library."*\n   • Tip: Try replacing it with "they are"—if the sentence still makes sense, use the apostrophe!`;
   }
 
   // 3. Mini Quiz
@@ -1410,6 +1562,7 @@ function renderChatMessages() {
 
 function formatChatMarkdown(text) {
   return text
+    .replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10 font-mono text-xs">$1</code>')
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>');
 }
