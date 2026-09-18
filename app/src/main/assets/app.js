@@ -627,45 +627,47 @@ async function callGeminiAPI(params, apiKey) {
   const { domain, topic, gradeLevel, format, count, includeAnswers, grammarTarget, grammarLabel, grammarMode } = params;
   const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-  const prompt = `Generate an authentic, high-quality ELA (English Language Arts) worksheet in JSON format for:
-Content Pillar: "${domain}" (Reading / Language / Writing)
-Topic / Central Theme: "${topic}"
-Grade Level: "${gradeLevel}"
-Format: "${format}"
-Task / Item Count: ${count}
-Variable Grammar Focus: "${grammarLabel || 'None'}" (${grammarMode || 'balanced'})
-Include Answer Key: ${includeAnswers}
+  const prompt = `Generate an authentic, high-quality ELA (English Language Arts) worksheet in JSON format. You MUST strictly adhere to all user specifications below:
 
-Requirements:
-- If domain is Reading: Include a 3-paragraph reading passage with numbered paragraphs, followed by deep comprehension questions. If grammar focus is active, include at least one question analyzing syntax in the passage.
-- If domain is Language: Provide rich vocabulary in context, figurative language, idioms, or morphology exercises with clear hints.
-- If domain is Writing: Provide a stimulating writing prompt, clear criteria, a required variable grammar constraint, and a 4-part scoring rubric.
-- If domain is Integrated: Provide a passage, 4 language questions, and a writing prompt with rubric.
+CRITICAL SPECIFICATIONS:
+- Content Pillar / Domain: "${domain}" (Must strictly generate a ${domain} worksheet)
+- Topic / Central Theme: "${topic}" (MUST be directly about ${topic}. The passage, vocabulary, questions, and writing tasks MUST focus entirely on this exact topic: ${topic})
+- Grade Level / Target Audience: "${gradeLevel}" (Vocabulary, sentence complexity, and question rigor MUST precisely match ${gradeLevel})
+- Format / Exercise Type: "${format}" (Questions MUST reflect this exact format)
+- Question / Item Count: ${count} (The "questions" array MUST contain EXACTLY ${count} items, numbered 1 to ${count})
+- Variable Grammar Focus: "${grammarLabel || 'None'}" (Mode: ${grammarMode || 'balanced'}) (If specified, integrate questions or required writing rules targeting ${grammarLabel || 'this grammar focus'})
+- Include Answer Key: ${includeAnswers} (Every question MUST include a detailed "answer" string)
 
-Return ONLY valid JSON with this schema:
+PEDAGOGICAL REQUIREMENTS BY DOMAIN:
+- If domain is Reading: Include a 3-paragraph reading passage set in numbered paragraphs ([1], [2], [3]) strictly about "${topic}". Follow with exactly ${count} deep comprehension questions. If grammar focus is active, include at least one question analyzing syntax or grammar in the passage.
+- If domain is Language: Provide exactly ${count} language/vocabulary exercises strictly tailored to "${topic}" and the format "${format}" with clear hints.
+- If domain is Writing: Provide a stimulating writing prompt on "${topic}", clear constraints, a required variable grammar rule for "${grammarLabel || 'grammar'}", and a 4-part scoring rubric. Also include ${count} pre-writing or drafting questions.
+- If domain is Integrated: Provide a reading passage on "${topic}", language questions, and a writing task with rubric totaling ${count} items.
+
+Return ONLY valid JSON with this exact schema (no additional markdown or conversational text):
 {
-  "title": "Title of Worksheet",
+  "title": "Title reflecting ${topic}",
   "domain": "${domain}",
-  "instructions": "Clear directions for the student",
-  "passage": "Optional reading passage text if relevant",
+  "instructions": "Clear directions tailored to ${gradeLevel} students for ${topic}",
+  "passage": "Full reading passage about ${topic} if domain is Reading or Integrated, else null",
   "questions": [
     {
       "id": 1,
-      "prompt": "Question text or writing prompt",
-      "options": ["A", "B", "C", "D"], // optional
-      "hint": "Helpful pedagogical clue or grammar requirement",
-      "answer": "Correct answer, sample response, or rubric check"
+      "prompt": "Question text directly about ${topic}",
+      "options": ["Option A", "Option B", "Option C", "Option D"], // optional
+      "hint": "Helpful pedagogical clue or grammar guidance",
+      "answer": "Detailed answer or sample response"
     }
   ],
   "writingTask": {
-    "prompt": "Full writing prompt",
-    "grammarRequirement": "Specific instruction for incorporating the variable grammar target",
+    "prompt": "Writing prompt directly about ${topic}",
+    "grammarRequirement": "Specific instruction for incorporating ${grammarLabel || 'variable grammar'}",
     "rubric": [
-      { "criterion": "Ideas & Content", "description": "Clear thesis and supporting evidence" },
+      { "criterion": "Ideas & Content", "description": "Clear thesis and supporting evidence on ${topic}" },
       { "criterion": "Grammar Mastery", "description": "Accurate use of ${grammarLabel || 'standard grammar'}" }
     ]
   },
-  "teacherNotes": "Brief pedagogical notes for the instructor"
+  "teacherNotes": "Brief pedagogical notes for teaching ${topic} to ${gradeLevel} students"
 }`;
 
   const response = await fetch(ENDPOINT, {
@@ -746,24 +748,24 @@ function buildCurriculumWorksheet(params) {
   if (domain === 'reading') {
     const readingQuestionBlueprints = [
       {
-        prompt: `Based on Paragraph 1, what primary energy source sustains the biological community around hydrothermal vents? Cite specific text evidence.`,
-        hint: `Look for how bacteria synthesize energy without sunlight.`,
-        answer: `Sample Answer: Chemosynthetic bacteria synthesize sulfur-laden minerals into sustenance through chemosynthesis, forming the base of the food web in the absence of sunlight.`
+        prompt: `Based on Paragraph 1, what central claim or mechanism regarding "${topic}" does the author introduce? Cite specific text evidence.`,
+        hint: `Look at the key concepts introduced in Paragraph 1 regarding ${topic}.`,
+        answer: `Sample Answer: The author establishes that ${topic} involves fundamental principles that shape research and understanding in Paragraph 1.`
       },
       {
-        prompt: `In Paragraph 2, what does the author imply by describing deep-sea adaptations as "profound physiological marvels"?`,
-        hint: `Consider the author's diction and tone regarding extreme pressure.`,
-        answer: `Sample Answer: The author implies that survival under extreme pressure requires extraordinary biological adaptations, such as gelatinous bodies and the absence of air cavities.`
+        prompt: `In Paragraph 2, how does the author elaborate on the underlying dynamics of "${topic}"?`,
+        hint: `Focus on cause-and-effect relationships or subtle influencing factors in Paragraph 2.`,
+        answer: `Sample Answer: The author demonstrates that subtle underlying factors in ${topic} produce cascading ramifications across the system.`
       },
       {
-        prompt: `Analyze the author's primary argument in Paragraph 3. How does the author transition from biological description to environmental advocacy?`,
-        hint: `Identify the shift in focus from natural wonder to human threats.`,
-        answer: `Sample Answer: The author transitions by contrasting ancient, undisturbed seafloor ecosystems with imminent industrial threats (mining and trawling), arguing for urgent international conservation treaties.`
+        prompt: `Analyze the author's primary conclusion in Paragraph 3 regarding "${topic}". What future actions or ethical considerations are recommended?`,
+        hint: `Identify the shift towards stewardship, critical analysis, and collaborative inquiry.`,
+        answer: `Sample Answer: The author concludes that mastering ${topic} requires human critical analysis, ethical discernment, and collaborative inquiry.`
       },
       {
-        prompt: `Vocabulary in Context: Based on Paragraph 1, determine the meaning of the word "perpetual" or "encroaches" as used in the passage.`,
-        hint: `Use surrounding context clues to determine nuance.`,
-        answer: `Sample Answer: "Encroaches" means gradually advancing into or intruding upon a protected space; "perpetual" denotes continuous, uninterrupted duration.`
+        prompt: `Vocabulary in Context: Examine the passage about "${topic}". Select a key domain-specific term, define it in context, and explain its significance.`,
+        hint: `Use surrounding context clues in the reading passage to determine nuance.`,
+        answer: `Sample Answer: Key term definition and contextual analysis grounded directly in the text about ${topic}.`
       }
     ];
 
