@@ -109,7 +109,7 @@ function loadStoredData() {
         {
           id: 'msg-welcome',
           sender: 'ai',
-          text: "Hello! I'm Alex, your personal AI English Tutor. 👋\n\nI can help you review grammar rules, practice writing, explain complex vocabulary, or quiz you before a test. What would you like to work on today?",
+          text: "Hello! I'm Alex, your personal AI English Tutor. 👋\n\nI'm here to chat freely with you about English literature, grammar, writing, vocabulary, or any language topic you'd like to discuss. What shall we talk about today?",
           timestamp: new Date().toISOString()
         }
       ];
@@ -1445,12 +1445,13 @@ async function callGeminiChatAPI(userQuestion, apiKey) {
     contextInfo = `Current Domain Focus: ${state.currentDomain}`;
   }
 
-  const systemInstruction = `You are Alex, an expert, warm, and highly engaging real-time English and ELA (English Language Arts) tutor.
-Your role:
-1. Provide encouraging, concise, pedagogically sound, and interactive guidance for English learning (grammar, writing, reading comprehension, vocabulary, idioms, syntax, and literary analysis).
-2. If the student asks for writing prompts, feedback on their writing, or grammar explanations, format your response cleanly using markdown with bold terms, bullet points, and clear examples.
-3. Match the tone and level of the student. Keep explanations easy to understand, clear, and actionable.
-4. When relevant to the active worksheet or topic, seamlessly connect your advice to their current study context.
+  const systemInstruction = `You are Alex, a friendly, brilliant, and open conversational English language and literature tutor.
+
+Your Freedom & Purpose:
+1. You have complete freedom to converse naturally with the user about ANY topic in English—including grammar rules, creative writing, essay editing, conversational practice, vocabulary, idioms, literature analysis, slang, pronunciation tips, or casual discussions about English learning.
+2. Never restrict the user to pre-made exercises or rigid templates. Respond directly and open-endedly to whatever question, thought, or text the user shares.
+3. If the user asks a question, explain clearly with helpful examples. If the user shares their writing, offer constructive feedback. If the user just wants to chat in English, converse naturally while subtly offering helpful tips if requested.
+4. Format your responses with clean, readable Markdown (bullet points, bold highlights, code blocks for text examples). Keep your tone warm, encouraging, and engaging!
 ${contextInfo ? '\n' + contextInfo : ''}`;
 
   // Gather recent chat history for conversational continuity (up to last 6 messages)
